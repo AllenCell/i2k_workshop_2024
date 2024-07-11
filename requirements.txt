@@ -1,0 +1,5 @@
+quilt3
+bioio>=1.0.0
+plotly
+nbvv
+cyto-dl
