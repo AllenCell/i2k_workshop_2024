@@ -3,3 +3,4 @@ bioio>=1.0.0
 plotly
 nbvv
 cyto-dl
+aicsshparam

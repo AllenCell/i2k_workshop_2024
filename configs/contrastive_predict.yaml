@@ -1,0 +1,118 @@
+experiment_name: workshop
+run_name: tensor_train
+task_name: train
+tags:
+- dev
+train: true
+test: false
+ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/workshop/tensor_train/2024-07-16_14-41-56/checkpoints/epoch_409.ckpt"
+seed: 12345
+data:
+  _target_: cyto_dl.datamodules.dataframe.DataframeDatamodule
+  path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/perturbation_dataset/full_fovs_drug/manifests/test.csv"
+  split_column: split
+  num_workers: 8
+  transforms:
+    train:
+    val:
+    test: 
+    predict:
+    - _target_: monai.transforms.LoadImaged
+      keys: 
+        - cell
+      reader:
+        - _target_: cyto_dl.image.io.MonaiBioReader
+          dimension_order_out: "CZYX"
+          dask_load: False
+    - _target_: cyto_dl.image.transforms.add_meta.AddMeta
+      image_key: cell
+      meta_keys: [Gene, drug_label, basename]
+    - _target_: monai.transforms.ToTensord
+      keys:
+      - cell
+      dtype: float16
+    - _target_: monai.transforms.Zoomd
+      keys: cell
+      zoom: 0.5
+      keep_size: false
+model:
+  _target_: cyto_dl.models.contrastive.contrastive.Contrastive
+  save_dir: ${paths.output_dir}
+  anchor_key: cell
+  positive_key: cell_aug
+  backbone:
+    _target_: monai.networks.nets.Regressor
+    in_shape:
+    - 1
+    - 28
+    - 128
+    - 192
+    out_shape: 256
+    channels:
+    - 32
+    - 64
+    - 128
+    - 256
+    strides:
+    - 2
+    - 2
+    - 2
+    - 2
+    kernel_size: 3
+  task_head:
+    _target_: cyto_dl.nn.head.vic_reg.VICRegHead
+    loss:
+      _target_: cyto_dl.nn.losses.vic_reg.VICRegLoss
+      num_features: 256
+    dims:
+    - 256
+    - 1024
+    hidden_layers:
+    - 1024
+    - 1024
+    - 1024
+  optimizer:
+    _partial_: true
+    _target_: torch.optim.AdamW
+    weight_decay: 0.03
+  lr_scheduler:
+    _partial_: true
+    _target_: torch.optim.lr_scheduler.OneCycleLR
+    max_lr: 0.00015
+    epochs: ${trainer.max_epochs}
+    steps_per_epoch: 1
+    pct_start: 0.02
+  target_key: Gene
+callbacks:
+  csv_saver:
+    _target_: cyto_dl.callbacks.csv_saver.CSVSaver
+    meta_keys: [Gene, drug_label, basename]
+    save_dir: ${paths.output_dir}
+logger:
+trainer:
+  _target_: lightning.Trainer
+  default_root_dir: ${paths.output_dir}
+  min_epochs: 1
+  max_epochs: 1000
+  accelerator: gpu
+  devices:
+  - 0
+  precision: 16
+  check_val_every_n_epoch: 10
+  deterministic: false
+  detect_anomaly: false
+  max_time: null
+  gradient_clip_val: 1.0
+paths:
+  root_dir: ${oc.env:PROJECT_ROOT, './'}
+  data_dir: ${paths.root_dir}/data/
+  log_dir: ${paths.root_dir}/logs/
+  output_dir: 
+extras:
+  ignore_warnings: true
+  enforce_tags: False
+  print_config: false
+  precision:
+    _target_: torch.set_float32_matmul_precision
+    precision: medium
+persist_cache: true
