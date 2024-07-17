@@ -1,3 +1,3 @@
 # ignore downloaded data
-.local_data/
+/local_data/
 .venv
