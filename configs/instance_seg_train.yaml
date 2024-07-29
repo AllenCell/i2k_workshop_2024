@@ -1,0 +1,222 @@
+experiment_name: workshop
+run_name: instance_seg
+task_name: train
+tags:
+- dev
+train: true
+test: true
+ckpt_path: null
+seed: 12345
+data:
+  _aux:
+    patch_shape:
+    - 40
+    - 256
+    - 256
+
+  num_workers: 16
+  batch_size: 4
+  pin_memory: true
+  persistent_workers: false
+
+  train_dataloaders:
+    _target_: cyto_dl.datamodules.array.make_array_dataloader
+    data: 
+    num_workers: 1
+    batch_size: 1
+    source_key: ${source_col}
+    transforms:
+      - _target_: cyto_dl.image.transforms.clip.Clipd
+        keys: raw
+      - _target_: monai.transforms.NormalizeIntensityd
+        keys: raw
+        channel_wise: true
+      - _target_: cyto_dl.models.im2im.utils.instance_seg.InstanceSegPreprocessd
+        label_keys:
+        - fov_seg
+        dim: 3
+        anisotropy: 2.6
+        thin: 10
+      - _target_: monai.transforms.ToTensord
+        keys:
+        - raw
+        - fov_seg
+        dtype: float16
+      - _target_: cyto_dl.image.transforms.RandomMultiScaleCropd
+        keys:
+        - raw
+        - fov_seg
+        patch_shape: ${data._aux.patch_shape}
+        patch_per_image: 1
+        scales_dict: ${kv_to_dict:${data._aux._scales_dict}}
+      - _target_: cyto_dl.models.im2im.utils.instance_seg.InstanceSegRandFlipd
+        spatial_axis: 1
+        image_keys:
+        - raw
+        label_keys: fov_seg
+      - _target_: cyto_dl.models.im2im.utils.instance_seg.InstanceSegRandFlipd
+        spatial_axis: 2
+        image_keys:
+        - raw
+        label_keys: fov_seg
+  val_dataloaders:
+    _target_: cyto_dl.datamodules.array.make_array_dataloader
+    data: 
+    num_workers: 1
+    batch_size: 1
+    source_key: ${source_col}
+    transforms:
+      - _target_: cyto_dl.image.transforms.clip.Clipd
+        keys: raw
+      - _target_: monai.transforms.NormalizeIntensityd
+        keys: raw
+        channel_wise: true
+      - _target_: cyto_dl.models.im2im.utils.instance_seg.InstanceSegPreprocessd
+        label_keys:
+        - fov_seg
+        dim: 3
+        anisotropy: 2.6
+        thin: 10
+      - _target_: monai.transforms.ToTensord
+        keys:
+        - raw
+        - fov_seg
+        dtype: float16
+      - _target_: cyto_dl.image.transforms.RandomMultiScaleCropd
+        keys:
+        - raw
+        - fov_seg
+        patch_shape: ${data._aux.patch_shape}
+        patch_per_image: 1
+        scales_dict: ${kv_to_dict:${data._aux._scales_dict}}
+model:
+  _target_: cyto_dl.models.im2im.MultiTaskIm2Im
+  compile: false
+  save_images_every_n_epochs: 1
+  x_key: ${source_col}
+  save_dir: ${paths.output_dir}
+  backbone:
+    _target_: monai.networks.nets.DynUNet
+    spatial_dims: 3
+    in_channels: 1
+    out_channels: ${model._aux.out_channels}
+    strides:
+    - 1
+    - 2
+    - 2
+    - 2
+    kernel_size:
+    - 3
+    - 3
+    - 3
+    - 3
+    upsample_kernel_size:
+    - 2
+    - 2
+    - 2
+    filters:
+    - 16
+    - 32
+    - 64
+    - 128
+    dropout: 0.0
+    res_block: true
+  task_heads:
+    fov_seg:
+      save_input: true
+      _target_: cyto_dl.nn.ResBlocksHead
+      in_channels: ${model._aux.out_channels}
+      out_channels: 6
+      resolution: lr
+      n_convs: 1
+      loss:
+        _target_: cyto_dl.models.im2im.utils.instance_seg.InstanceSegLoss
+        dim: 3
+        weights:
+          skeleton: 0.2
+          semantic: 0.1
+          boundary: 0.2
+          vector: 0.2
+      postprocess:
+        input:
+          _target_: cyto_dl.models.im2im.utils.postprocessing.ActThreshLabel
+          ch: -1
+          dtype: numpy.float32
+        prediction:
+          _target_: cyto_dl.models.im2im.utils.postprocessing.ActThreshLabel
+          ch: -1
+          dtype: numpy.float32
+  optimizer:
+    generator:
+      _partial_: true
+      _target_: torch.optim.AdamW
+      lr: 0.0001
+      weight_decay: 0.001
+  lr_scheduler:
+    generator:
+      _partial_: true
+      _target_: torch.optim.lr_scheduler.ExponentialLR
+      gamma: 0.99
+  inference_args:
+    roi_size: ${data._aux.patch_shape}
+    sw_batch_size: 1
+    overlap: 0.25
+    mode: gaussian
+    progress: true
+  _aux:
+    out_channels: 16
+callbacks:
+  model_checkpoint:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    dirpath: ${paths.output_dir}/checkpoints
+    filename: epoch_{epoch:03d}
+    monitor: val/loss
+    verbose: false
+    save_last: true
+    save_top_k: 1
+    mode: min
+    auto_insert_metric_name: false
+    save_weights_only: false
+    every_n_train_steps: null
+    train_time_interval: null
+    every_n_epochs: 1
+    save_on_train_epoch_end: null
+  model_summary:
+    _target_: lightning.pytorch.callbacks.RichModelSummary
+    max_depth: -1
+  rich_progress_bar:
+    _target_: lightning.pytorch.callbacks.RichProgressBar
+logger:
+  csv:
+    _target_: lightning.pytorch.loggers.csv_logs.CSVLogger
+    save_dir: "${paths.output_dir}"
+    name: "csv/"
+    prefix: ""
+trainer:
+  _target_: lightning.Trainer
+  default_root_dir: ${paths.output_dir}
+  min_epochs: 1
+  max_epochs: 100
+  accelerator: gpu
+  devices:
+  - 0
+  precision: 16
+  check_val_every_n_epoch: 10
+  deterministic: false
+  detect_anomaly: false
+  max_time: null
+paths:
+  root_dir: ${oc.env:PROJECT_ROOT, './'}
+  data_dir: ${paths.root_dir}/data/
+  log_dir: ${paths.root_dir}/logs/
+  output_dir: 
+extras:
+  ignore_warnings: true
+  enforce_tags: true
+  print_config: true
+  precision:
+    _target_: torch.set_float32_matmul_precision
+    precision: medium
+source_col: raw
+target_col: caaxseg
+persist_cache: true

@@ -2,5 +2,5 @@ quilt3
 bioio>=1.0.0
 plotly
 nbvv
-cyto-dl
+cyto-dl @ git+https://github.com/AllenCellModeling/cyto-dl.git@feature/image_saving_callback
 aicsshparam
