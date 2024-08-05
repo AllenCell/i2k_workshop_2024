@@ -8,24 +8,22 @@ test: false
 ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/workshop/instance_seg/2024-07-17_14-34-16/checkpoints/epoch_089.ckpt"
 seed: 12345
 data:
-  _target_: torch.data.DataLoader
+  _aux:
+    patch_shape: [40, 256, 256]
+  _target_: cyto_dl.datamodules.array.make_array_dataloader
+  data: 
   num_workers: 1
   batch_size: 1
-  shuffle: False
-  dataset:
-    _target_: monai.data.Dataset
-    data:
-    transform:
-      - _target_: cyto_dl.image.transforms.clip.Clip
-      - _target_: monai.transforms.NormalizeIntensity
-        channel_wise: true
-      - _target_: monai.transforms.ToTensor
-        dtype: float16
-  _aux:
-    patch_shape:
-    - 40
-    - 256
-    - 256
+  source_key: ${source_col}
+  transforms:
+    - _target_: monai.transforms.ToTensord
+      keys:
+      - raw
+      dtype: float32
+    - _target_: cyto_dl.image.transforms.clip.Clipd
+      keys: raw
+    - _target_: monai.transforms.NormalizeIntensityd
+      keys: raw
 model:
   _target_: cyto_dl.models.im2im.MultiTaskIm2Im
   compile: false
@@ -60,7 +58,6 @@ model:
     res_block: true
   task_heads:
     fov_seg:
-      save_input: true
       _target_: cyto_dl.nn.ResBlocksHead
       in_channels: ${model._aux.out_channels}
       out_channels: 6
@@ -109,9 +106,8 @@ trainer:
   default_root_dir: ${paths.output_dir}
   min_epochs: 1
   max_epochs: 100
-  accelerator: gpu
-  devices:
-  - 0
+  accelerator: cpu
+  devices: 1
   precision: 16
   check_val_every_n_epoch: 10
   deterministic: false

@@ -10,15 +10,9 @@ seed: 12345
 data:
   _aux:
     patch_shape:
-    - 40
-    - 256
-    - 256
-
-  num_workers: 16
-  batch_size: 4
-  pin_memory: true
-  persistent_workers: false
-
+    - 16
+    - 16
+    - 16
   train_dataloaders:
     _target_: cyto_dl.datamodules.array.make_array_dataloader
     data: 
@@ -26,6 +20,11 @@ data:
     batch_size: 1
     source_key: ${source_col}
     transforms:
+      - _target_: monai.transforms.ToTensord
+        keys:
+        - raw
+        - seg
+        dtype: float32
       - _target_: cyto_dl.image.transforms.clip.Clipd
         keys: raw
       - _target_: monai.transforms.NormalizeIntensityd
@@ -33,32 +32,27 @@ data:
         channel_wise: true
       - _target_: cyto_dl.models.im2im.utils.instance_seg.InstanceSegPreprocessd
         label_keys:
-        - fov_seg
+        - seg
         dim: 3
         anisotropy: 2.6
         thin: 10
-      - _target_: monai.transforms.ToTensord
+      - _target_: monai.transforms.RandSpatialCropSamplesd
         keys:
         - raw
-        - fov_seg
-        dtype: float16
-      - _target_: cyto_dl.image.transforms.RandomMultiScaleCropd
-        keys:
-        - raw
-        - fov_seg
-        patch_shape: ${data._aux.patch_shape}
-        patch_per_image: 1
-        scales_dict: ${kv_to_dict:${data._aux._scales_dict}}
+        - seg
+        roi_size: ${data._aux.patch_shape}
+        random_size: false
+        num_samples: 1
       - _target_: cyto_dl.models.im2im.utils.instance_seg.InstanceSegRandFlipd
         spatial_axis: 1
         image_keys:
         - raw
-        label_keys: fov_seg
+        label_keys: seg
       - _target_: cyto_dl.models.im2im.utils.instance_seg.InstanceSegRandFlipd
         spatial_axis: 2
         image_keys:
         - raw
-        label_keys: fov_seg
+        label_keys: seg
   val_dataloaders:
     _target_: cyto_dl.datamodules.array.make_array_dataloader
     data: 
@@ -66,6 +60,11 @@ data:
     batch_size: 1
     source_key: ${source_col}
     transforms:
+      - _target_: monai.transforms.ToTensord
+        keys:
+        - raw
+        - seg
+        dtype: float32
       - _target_: cyto_dl.image.transforms.clip.Clipd
         keys: raw
       - _target_: monai.transforms.NormalizeIntensityd
@@ -73,22 +72,17 @@ data:
         channel_wise: true
       - _target_: cyto_dl.models.im2im.utils.instance_seg.InstanceSegPreprocessd
         label_keys:
-        - fov_seg
+        - seg
         dim: 3
         anisotropy: 2.6
         thin: 10
-      - _target_: monai.transforms.ToTensord
+      - _target_: monai.transforms.RandSpatialCropSamplesd
         keys:
         - raw
-        - fov_seg
-        dtype: float16
-      - _target_: cyto_dl.image.transforms.RandomMultiScaleCropd
-        keys:
-        - raw
-        - fov_seg
-        patch_shape: ${data._aux.patch_shape}
-        patch_per_image: 1
-        scales_dict: ${kv_to_dict:${data._aux._scales_dict}}
+        - seg
+        roi_size: ${data._aux.patch_shape}
+        random_size: false
+        num_samples: 1
 model:
   _target_: cyto_dl.models.im2im.MultiTaskIm2Im
   compile: false
@@ -122,8 +116,7 @@ model:
     dropout: 0.0
     res_block: true
   task_heads:
-    fov_seg:
-      save_input: true
+    seg:
       _target_: cyto_dl.nn.ResBlocksHead
       in_channels: ${model._aux.out_channels}
       out_channels: 6
@@ -197,9 +190,8 @@ trainer:
   default_root_dir: ${paths.output_dir}
   min_epochs: 1
   max_epochs: 100
-  accelerator: gpu
-  devices:
-  - 0
+  accelerator: cpu
+  devices: 1
   precision: 16
   check_val_every_n_epoch: 10
   deterministic: false
@@ -213,7 +205,7 @@ paths:
 extras:
   ignore_warnings: true
   enforce_tags: true
-  print_config: true
+  print_config: false
   precision:
     _target_: torch.set_float32_matmul_precision
     precision: medium
