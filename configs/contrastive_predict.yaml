@@ -8,25 +8,13 @@ test: false
 ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/workshop/tensor_train/2024-07-16_14-41-56/checkpoints/epoch_409.ckpt"
 seed: 12345
 data:
-  _target_: cyto_dl.datamodules.dataframe.DataframeDatamodule
-  path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/perturbation_dataset/full_fovs_drug/manifests/test.csv"
-  split_column: split
-  num_workers: 8
+  _target_: cyto_dl.datamodules.array.make_array_dataloader
+  data:
+  num_workers: 1
   transforms:
-    train:
-    val:
-    test: 
-    predict:
-    - _target_: monai.transforms.LoadImaged
-      keys: 
-        - cell
-      reader:
-        - _target_: cyto_dl.image.io.MonaiBioReader
-          dimension_order_out: "CZYX"
-          dask_load: False
-    - _target_: cyto_dl.image.transforms.add_meta.AddMeta
-      image_key: cell
-      meta_keys: [Gene, drug_label, basename]
+    # - _target_: cyto_dl.image.transforms.add_meta.AddMeta
+      # image_key: cell
+      # meta_keys: [Gene, drug_label, basename]
     - _target_: monai.transforms.ToTensord
       keys:
       - cell
@@ -86,7 +74,7 @@ model:
 callbacks:
   csv_saver:
     _target_: cyto_dl.callbacks.csv_saver.CSVSaver
-    meta_keys: [Gene, drug_label, basename]
+    # meta_keys: [Gene, drug_label, basename]
     save_dir: ${paths.output_dir}
 logger:
 trainer:

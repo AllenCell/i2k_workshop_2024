@@ -77,9 +77,8 @@ model:
           ch: -1
           dtype: numpy.float32
         prediction:
-          _target_: cyto_dl.models.im2im.utils.postprocessing.ActThreshLabel
-          ch: -1
-          dtype: numpy.float32
+          _target_: cyto_dl.models.im2im.utils.instance_seg.InstanceSegCluster
+          min_size: 100
   optimizer:
     generator:
       _partial_: true
@@ -106,8 +105,8 @@ trainer:
   default_root_dir: ${paths.output_dir}
   min_epochs: 1
   max_epochs: 100
-  accelerator: cpu
-  devices: 1
+  accelerator: gpu
+  devices: [0]
   precision: 16
   check_val_every_n_epoch: 10
   deterministic: false

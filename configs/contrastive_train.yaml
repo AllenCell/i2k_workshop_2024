@@ -1,0 +1,300 @@
+experiment_name: workshop
+run_name: tensor_train
+task_name: train
+tags:
+- dev
+train: true
+test: true
+ckpt_path: null
+seed: 12345
+data:
+  train_dataloaders:
+    _target_: cyto_dl.datamodules.array.make_array_dataloader
+    data: 
+    batch_size: 128
+    num_workers: 1
+    transforms:
+    - _target_: monai.transforms.ToTensord
+      keys:
+      - input
+      dtype: float16
+    - _target_: monai.transforms.Zoomd
+      keys: input
+      zoom: 0.5
+      keep_size: false
+    - _target_: monai.transforms.CopyItemsd
+      keys: input
+      times: 1
+      names:
+      - input_aug
+    - _target_: monai.transforms.RandFlipd
+      keys:
+      - input
+      prob: 0.5
+      spatial_axis: 2
+    - _target_: monai.transforms.RandFlipd
+      keys:
+      - input
+      prob: 0.5
+      spatial_axis: 1
+    - _target_: monai.transforms.RandZoomd
+      keys:
+      - input
+      prob: 1.0
+      min_zoom: 0.8
+      max_zoom: 1.2
+    - _target_: monai.transforms.RandShiftIntensityd
+      keys:
+      - input
+      prob: 0.85
+      offsets: 3
+    - _target_: monai.transforms.RandGaussianSmoothd
+      keys:
+      - input
+      sigma_x:
+      - 0.5
+      - 1.0
+      prob: 0.5
+      sigma_y:
+      - 0.5
+      - 1.0
+    - _target_: monai.transforms.RandFlipd
+      keys:
+      - input_aug
+      prob: 0.5
+      spatial_axis: 2
+    - _target_: monai.transforms.RandFlipd
+      keys:
+      - input_aug
+      prob: 0.5
+      spatial_axis: 1
+    - _target_: monai.transforms.RandZoomd
+      keys:
+      - input_aug
+      prob: 0.5
+      min_zoom: 0.8
+      max_zoom: 1.2
+    - _target_: monai.transforms.RandShiftIntensityd
+      keys:
+      - input_aug
+      prob: 1.0
+      offsets: 3
+    - _target_: monai.transforms.RandGaussianSmoothd
+      keys:
+      - input_aug
+      sigma_x:
+      - 0.5
+      - 1.0
+      prob: 0.1
+      sigma_y:
+      - 0.5
+      - 1.0
+    - _target_: monai.transforms.RandHistogramShiftd
+      prob: 0.5
+      keys:
+      - input_aug
+      num_control_points:
+      - 200
+      - 500
+  val_dataloaders:
+    _target_: cyto_dl.datamodules.array.make_array_dataloader
+    batch_size: 128
+    num_workers: 1
+    data: 
+    transforms:
+    - _target_: monai.transforms.ToTensord
+      keys:
+      - input
+      dtype: float16
+    - _target_: monai.transforms.Zoomd
+      keys: input
+      zoom: 0.5
+      keep_size: false
+    - _target_: monai.transforms.CopyItemsd
+      keys: input
+      times: 1
+      names:
+      - input_aug
+    - _target_: monai.transforms.RandFlipd
+      keys:
+      - input
+      prob: 0.5
+      spatial_axis: 2
+    - _target_: monai.transforms.RandFlipd
+      keys:
+      - input
+      prob: 0.5
+      spatial_axis: 1
+    - _target_: monai.transforms.RandZoomd
+      keys:
+      - input
+      prob: 1.0
+      min_zoom: 0.8
+      max_zoom: 1.2
+    - _target_: monai.transforms.RandShiftIntensityd
+      keys:
+      - input
+      prob: 0.85
+      offsets: 3
+    - _target_: monai.transforms.RandGaussianSmoothd
+      keys:
+      - input
+      sigma_x:
+      - 0.5
+      - 1.0
+      prob: 0.5
+      sigma_y:
+      - 0.5
+      - 1.0
+    - _target_: monai.transforms.RandFlipd
+      keys:
+      - input_aug
+      prob: 0.5
+      spatial_axis: 2
+    - _target_: monai.transforms.RandFlipd
+      keys:
+      - input_aug
+      prob: 0.5
+      spatial_axis: 1
+    - _target_: monai.transforms.RandZoomd
+      keys:
+      - input_aug
+      prob: 0.5
+      min_zoom: 0.8
+      max_zoom: 1.2
+    - _target_: monai.transforms.RandShiftIntensityd
+      keys:
+      - input_aug
+      prob: 1.0
+      offsets: 3
+    - _target_: monai.transforms.RandGaussianSmoothd
+      keys:
+      - input_aug
+      sigma_x:
+      - 0.5
+      - 1.0
+      prob: 0.1
+      sigma_y:
+      - 0.5
+      - 1.0
+    - _target_: monai.transforms.RandHistogramShiftd
+      prob: 0.5
+      keys:
+      - input_aug
+      num_control_points:
+      - 200
+      - 500
+model:
+  _target_: cyto_dl.models.contrastive.contrastive.Contrastive
+  save_dir: ${paths.output_dir}
+  anchor_key: input
+  positive_key: input_aug
+  backbone:
+    _target_: monai.networks.nets.Regressor
+    in_shape:
+    - 1
+    - 28
+    - 128
+    - 192
+    out_shape: 256
+    channels:
+    - 32
+    - 64
+    - 128
+    - 256
+    strides:
+    - 2
+    - 2
+    - 2
+    - 2
+    kernel_size: 3
+  task_head:
+    _target_: cyto_dl.nn.head.vic_reg.VICRegHead
+    loss:
+      _target_: cyto_dl.nn.losses.vic_reg.VICRegLoss
+      num_features: 256
+    dims:
+    - 256
+    - 1024
+    hidden_layers:
+    - 1024
+    - 1024
+    - 1024
+  optimizer:
+    _partial_: true
+    _target_: torch.optim.AdamW
+    weight_decay: 0.03
+  lr_scheduler:
+    _partial_: true
+    _target_: torch.optim.lr_scheduler.OneCycleLR
+    max_lr: 0.00015
+    epochs: ${trainer.max_epochs}
+    steps_per_epoch: 1
+    pct_start: 0.02
+  target_key: Gene
+callbacks:
+  model_checkpoint:
+    _target_: lightning.pytorch.callbacks.ModelCheckpoint
+    dirpath: ${paths.output_dir}/checkpoints
+    filename: epoch_{epoch:03d}
+    monitor: val/loss
+    verbose: false
+    save_last: true
+    save_top_k: 1
+    mode: min
+    auto_insert_metric_name: false
+    save_weights_only: false
+    every_n_train_steps: null
+    train_time_interval: null
+    every_n_epochs: 1
+    save_on_train_epoch_end: null
+  early_stopping:
+    _target_: lightning.pytorch.callbacks.EarlyStopping
+    monitor: val/loss
+    min_delta: 0.0
+    patience: 100
+    verbose: false
+    mode: min
+    strict: true
+    check_finite: true
+    stopping_threshold: null
+    divergence_threshold: null
+    check_on_train_epoch_end: null
+  model_summary:
+    _target_: lightning.pytorch.callbacks.RichModelSummary
+    max_depth: -1
+  rich_progress_bar:
+    _target_: lightning.pytorch.callbacks.RichProgressBar
+logger:
+  mlflow:
+    _target_: cyto_dl.loggers.MLFlowLogger
+    tracking_uri: https://mlflow.a100.int.allencell.org/
+    experiment_name: ${experiment_name}
+    run_name: ${run_name}
+trainer:
+  _target_: lightning.Trainer
+  default_root_dir: ${paths.output_dir}
+  min_epochs: 1
+  max_epochs: 1000
+  accelerator: gpu
+  devices:
+  - 0
+  precision: 16
+  check_val_every_n_epoch: 10
+  deterministic: false
+  detect_anomaly: false
+  max_time: null
+  gradient_clip_val: 1.0
+paths:
+  root_dir: ${oc.env:PROJECT_ROOT, './'}
+  data_dir: ${paths.root_dir}/data/
+  log_dir: ${paths.root_dir}/logs/
+  output_dir: 
+extras:
+  ignore_warnings: true
+  enforce_tags: true
+  print_config: false
+  precision:
+    _target_: torch.set_float32_matmul_precision
+    precision: medium
+persist_cache: true

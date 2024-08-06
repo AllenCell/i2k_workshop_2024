@@ -190,8 +190,8 @@ trainer:
   default_root_dir: ${paths.output_dir}
   min_epochs: 1
   max_epochs: 100
-  accelerator: cpu
-  devices: 1
+  accelerator: gpu
+  devices: [0]
   precision: 16
   check_val_every_n_epoch: 10
   deterministic: false
