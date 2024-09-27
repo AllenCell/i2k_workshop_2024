@@ -5,7 +5,8 @@ tags:
 - dev
 train: true
 test: true
-ckpt_path: null
+checkpoint:
+  ckpt_path: null
 seed: 12345
 data:
   train_dataloaders:
