@@ -7,6 +7,8 @@ train: true
 test: false
 checkpoint:
   ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/workshop/instance_seg/2024-07-17_14-34-16/checkpoints/epoch_089.ckpt"
+  strict: true
+  weights_only: True
 seed: 12345
 data:
   _aux:

@@ -6,7 +6,9 @@ tags:
 train: true
 test: false
 checkpoint:
-  ckpt_path: "//allen/aics/assay-dev/users/Benji/CurrentProjects/im2im_dev/cyto-dl/logs/train/runs/workshop/tensor_train/2024-07-16_14-41-56/checkpoints/epoch_409.ckpt"
+  ckpt_path: ${paths.root_dir}/assets/models/
+  strict: true
+  weights_only: True
 seed: 12345
 data:
   _target_: cyto_dl.datamodules.array.make_array_dataloader
