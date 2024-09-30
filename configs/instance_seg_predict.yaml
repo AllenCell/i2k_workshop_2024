@@ -6,7 +6,7 @@ tags:
 train: true
 test: false
 checkpoint:
-  ckpt_path: ${paths.root_dir}/assets/models/contrastive_predict.ckpt/instance_seg_predict.ckpt
+  ckpt_path: null
   strict: true
   weights_only: True
 seed: 12345
