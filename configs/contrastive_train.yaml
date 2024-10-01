@@ -268,11 +268,11 @@ callbacks:
   rich_progress_bar:
     _target_: lightning.pytorch.callbacks.RichProgressBar
 logger:
-  mlflow:
-    _target_: cyto_dl.loggers.MLFlowLogger
-    tracking_uri: https://mlflow.a100.int.allencell.org/
-    experiment_name: ${experiment_name}
-    run_name: ${run_name}
+  csv:
+    _target_: lightning.pytorch.loggers.csv_logs.CSVLogger
+    save_dir: "${paths.output_dir}"
+    name: "csv/"
+    prefix: ""
 trainer:
   _target_: lightning.Trainer
   default_root_dir: ${paths.output_dir}
