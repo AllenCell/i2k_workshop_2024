@@ -12,7 +12,7 @@ seed: 12345
 data:
   _aux:
     patch_shape:
-    - 16
+    - 8
     - 16
     - 16
   train_dataloaders:
@@ -22,6 +22,13 @@ data:
     batch_size: 1
     source_key: ${source_col}
     transforms:
+      # NOTE- zooming is only done to speed up the example
+      - _target_: monai.transforms.Zoomd
+        keys:
+        - raw
+        - seg
+        keep_size: false
+        zoom: 0.25
       - _target_: monai.transforms.ToTensord
         keys:
         - raw
@@ -37,7 +44,7 @@ data:
         - seg
         dim: 3
         anisotropy: 2.6
-        thin: 10
+        thin: 5
       - _target_: monai.transforms.RandSpatialCropSamplesd
         keys:
         - raw
@@ -45,6 +52,7 @@ data:
         roi_size: ${data._aux.patch_shape}
         random_size: false
         num_samples: 1
+
       - _target_: cyto_dl.models.im2im.utils.instance_seg.InstanceSegRandFlipd
         spatial_axis: 1
         image_keys:
@@ -62,6 +70,13 @@ data:
     batch_size: 1
     source_key: ${source_col}
     transforms:
+      # NOTE- zooming is only done to speed up the example
+      - _target_: monai.transforms.Zoomd
+        keys:
+        - raw
+        - seg
+        keep_size: false
+        zoom: 0.25
       - _target_: monai.transforms.ToTensord
         keys:
         - raw
@@ -77,7 +92,7 @@ data:
         - seg
         dim: 3
         anisotropy: 2.6
-        thin: 10
+        thin: 5
       - _target_: monai.transforms.RandSpatialCropSamplesd
         keys:
         - raw
@@ -85,6 +100,7 @@ data:
         roi_size: ${data._aux.patch_shape}
         random_size: false
         num_samples: 1
+
 model:
   _target_: cyto_dl.models.im2im.MultiTaskIm2Im
   compile: false
